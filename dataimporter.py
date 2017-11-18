@@ -14,7 +14,7 @@ DATE = 2
 TEMPERATURE = 3
 
 ##
-countries = set()
+start_year = 1980
 
 # For example, in monthly data: 
 # 
@@ -27,87 +27,102 @@ def convert_date(date):
 
     return (year, month)
 
-# Dictionary containing station_id to country mapping
-station_countries = dict()
+def import_stations_from_file(location):
+    countries = set()
+    station_countries = dict()
+
+    with open(location) as stations:
+        for line in stations:
+            # Skip preamble
+            if (line[0] <> '%'):
+                splitted = re.split(r'\t+', line)
+                station_countries[int(splitted[STATION_ID])] = splitted[COUNTRY].strip()
+                countries.add(splitted[COUNTRY].strip())
+
+    return (countries, station_countries)
+
+# Load Temperature data (AVG, MIN, MAX) and ....
+def import_from_file(location, countries, station_countries):
+    with open(location) as data:
+        test_limit = 1000
+
+        country_monthly_values_all_stations = dict()
+
+        print "Reading file: " + location
+
+        # Get values as tuples (year,month,value) in a dictionary of countries
+        for line in data:
+            test_limit -= 1
+            if (line[0] <> '%'):
+                splitted = re.split(r'\t+', line)
+                country = station_countries[int(splitted[STATION_ID])]
+                year, month = convert_date(splitted[DATE])
+                temp = splitted[TEMPERATURE]
+                
+                if (year > start_year):
+                    try:
+                        country_monthly_values_all_stations[country].append((year, month, temp))
+                    except KeyError:
+                        country_monthly_values_all_stations[country] = [(year,month,temp)]
+
+            if (test_limit == 0):
+                break
+
+        country_monthly_average_values = dict()
+
+        # Get average temperature from all stations for each month
+        print "Aggregating..."
+        i = 0
+        for country in countries:
+            i += 1
+            sys.stdout.write('\r' + str(i) + ' out of ' + str(len(countries)) + ' countries')
+            sys.stdout.flush()
+
+            try:
+                values = country_monthly_values_all_stations[country]
+                monthly_values = dict()
+                # All temperature values from all stations for a month
+                for value in values:
+                    year = value[0]
+                    month = value[1]
+                    temp = value[2]
+                    try:
+                        monthly_values[(year,month)].append(float(temp))
+                    except KeyError:
+                        monthly_values[(year,month)] = [float(temp)]
+                        # Average temperature value for a month
+                
+                average_monthly_values = dict()
+                for item in monthly_values.iteritems():
+                    year_month_tuple = item[0]
+                    temperature_values = item[1]
+
+                    try:
+                        country_monthly_average_values[country].append((year_month_tuple, (sum(temperature_values) / len(temperature_values))))
+                    except KeyError:
+                        country_monthly_average_values[country] = [(year_month_tuple, sum(temperature_values) / len(temperature_values))]
+            except:
+                pass
+
+        print '\n'
+
+    return average_monthly_values
 
 ts = time.time()
 print "Start: " + datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
-with open('../avg/site_detail.txt') as stations:
-    for line in stations:
-        # Skip preamble
-        if (line[0] <> '%'):
-            splitted = re.split(r'\t+', line)
-            station_countries[int(splitted[STATION_ID])] = splitted[COUNTRY].strip()
-            countries.add(splitted[COUNTRY].strip())
+countries, station_countries = import_stations_from_file('../tavg/site_detail.txt')
+country_monthly_average_values = import_from_file('../tavg/data.txt', countries, station_countries)
+country_monthly_max_values = import_from_file('../tmax/data.txt', countries, station_countries)
+country_monthly_min_values = import_from_file('../tmin/data.txt', countries, station_countries)
 
-# Load Temperature data (AVG, MIN, MAX) and ....
-with open('../avg/data.txt') as data:
-    test_limit = 10000000
+# for country in countries:
+#     try:
+#         print country + ": " + str(len(country_monthly_average_values[country])) + " months"
+#     except KeyError:
+#         print country + ": No data"
 
-    country_monthly_values_all_stations = dict()
-    country_monthly_average = dict()
-
-    print "Reading file..."
-
-    # Get values as tuples (year,month,value) in a dictionary of countries
-    for line in data:
-        test_limit -= 1
-        if (line[0] <> '%'):
-            splitted = re.split(r'\t+', line)
-            country = station_countries[int(splitted[STATION_ID])]
-            year, month = convert_date(splitted[DATE])
-            temp = splitted[TEMPERATURE]
-            
-            try:
-                country_monthly_values_all_stations[country].append((year, month, temp))
-            except KeyError:
-                country_monthly_values_all_stations[country] = [(year,month,temp)]
-
-        if (test_limit == 0):
-            break
-
-    country_monthly_average_values = dict()
-
-    # Get average temperature from all stations
-    print "Aggregating..."
-    i = 0
-    for country in countries:
-        i += 1
-        sys.stdout.write('\r' + str(i) + ' out of ' + str(len(countries)) + ' countries')
-        sys.stdout.flush()
-
-        try:
-            values = country_monthly_values_all_stations[country]
-            monthly_values = dict()
-            # All temperature values from all stations for a month
-            for value in values:
-                year = value[0]
-                month = value[1]
-                temp = value[2]
-                try:
-                    monthly_values[(year,month)].append(float(temp))
-                except KeyError:
-                    monthly_values[(year,month)] = [float(temp)]
-                    # Average temperature value for a month
-            
-            average_monthly_values = dict()
-            for item in monthly_values.iteritems():
-                year_month_tuple = item[0]
-                temperature_values = item[1]
-
-                try:
-                    country_monthly_average_values[country].append((year_month_tuple, (sum(temperature_values) / len(temperature_values))))
-                except KeyError:
-                    country_monthly_average_values[country] = [(year_month_tuple, sum(temperature_values) / len(temperature_values))]
-        except:
-            pass
-
-
-    print "\n"
-
-
-print country_monthly_average_values['Somalia']
+#print country_monthly_average_values['Somalia']
 
 ts = time.time()
 print "Finish: " + datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
