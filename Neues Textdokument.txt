@@ -1,0 +1,4 @@
+open pandas as pd 
+pd.parse_csv (google it)
+
+print
