@@ -14,6 +14,13 @@ STATION_ID = 0
 DATE = 2
 TEMPERATURE = 3
 
+# Natural Distaster Data Column Indexes
+ND_COUNTRY = 0
+ND_START_DATE = 1
+ND_END_DATE = 2
+ND_TYPE = 3
+ND_SUBTYPE = 4
+
 ##
 start_year = 1980
 end_year = 2017
@@ -32,6 +39,41 @@ def convert_date(date):
 
     return (year, month)
 
+def date_range(start, end):
+    start = re.split('/', start)
+    start_month = start[1]
+    start_year = int(start[2])
+    end = re.split('/', end)
+    end_month = end[1]
+    end_year = int(end[2])
+
+    if (start_month == ''):
+        start_month = 1
+    else:
+        start_month = int(start_month)
+
+    if (end_month == ''):
+        end_month = 12
+    else:
+        end_month = int(end_month)
+
+    l = list()
+
+    if (end_year > start_year):
+        month = start_month
+        year = start_year
+        while (year < end_year or (year == end_year and month <= end_month)):
+            if (month > 12):
+                month = 1
+                year += 1
+            l.append((year, month))
+            month += 1
+    else:
+        for month in range(start_month, end_month + 1):
+            l.append((start_year, month))
+
+    return l
+
 def import_stations_from_file(location):
     countries = set()
     station_countries = dict()
@@ -46,10 +88,49 @@ def import_stations_from_file(location):
 
     return (countries, station_countries)
 
+# Load Natural Disaster Data
+def import_natural_disaster_data(location):
+    global test_limit
+    limit = test_limit
+
+    with open(location) as csvfile:
+        print ("Reading file: " + location)
+        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        all_countries_natural_disasters = dict()
+
+        for line in csvfile:
+            limit -= 1
+            splitted = re.split(',' , line)
+
+            country = splitted[ND_COUNTRY]
+            months = date_range(splitted[ND_START_DATE], splitted[ND_END_DATE])
+            type = splitted[ND_TYPE]
+            subtype = splitted[ND_SUBTYPE]
+
+            try:
+                all_countries_natural_disasters[country]
+            except KeyError:
+                all_countries_natural_disasters[country] = dict()
+
+            for month in months:
+                try:
+                    all_countries_natural_disasters[country][month].add((type,subtype))
+                except KeyError:
+                    all_countries_natural_disasters[country][month] = set()
+                    all_countries_natural_disasters[country][month].add((type,subtype))
+
+            if (limit == 0):
+                break
+
+    return all_countries_natural_disasters
+
+
 # Load Temperature data (AVG, MIN, MAX) and ....
 def import_from_file(location, countries, station_countries):
     global test_limit
-    
+    limit = test_limit
+
     with open(location) as data:
         monthly_values_all_stations = dict()
 
@@ -57,7 +138,7 @@ def import_from_file(location, countries, station_countries):
 
         # Get values as tuples (year,month,value) in a dictionary of countries
         for line in data:
-            test_limit -= 1
+            limit -= 1
             if (line[0] != '%'):
                 splitted = re.split(r'\t+', line)
                 country = station_countries[int(splitted[STATION_ID])]
@@ -70,7 +151,7 @@ def import_from_file(location, countries, station_countries):
                     except KeyError:
                         monthly_values_all_stations[country] = [(year,month,temp)]
 
-            if (test_limit == 0):
+            if (limit == 0):
                 break
 
         country_monthly_average_values = dict()
@@ -130,15 +211,18 @@ for country in countries:
     all_countries.add(country)
 country_monthly_min_values = import_from_file('../tmin/data.txt', countries, station_countries)
 
+country_natural_disasters = import_natural_disaster_data("../natural_disaster.csv")
+
 with open('weather_data.csv', 'w', newline='') as csvfile:
     for country in all_countries:
         try:
             average = country_monthly_average_values[country]
-            maximum = country_monthly_min_values[country]
-            minimum = country_monthly_max_values[country]
+            minimum = country_monthly_min_values[country]
+            maximum = country_monthly_max_values[country]
+            all_disasters = country_natural_disasters[country]
 
             for year in range(start_year, end_year):
-                for month in range(1,12):
+                for month in range(1,12 + 1):
                     try:
                         monthly_average = average[(year, month)]
                     except KeyError:
@@ -151,17 +235,22 @@ with open('weather_data.csv', 'w', newline='') as csvfile:
                         monthly_min = minimum[(year, month)]
                     except KeyError:
                         monthly_min = "*"
-                    
+                    try:
+                        disasters = str(all_disasters[(year,month)])
+                    except KeyError:
+                        disasters = '*'
+
                     csvfile.write(country + ";")
                     csvfile.write(str(year) + ";")
                     csvfile.write(str(month) + ";")
                     csvfile.write(str(monthly_average) + ";")
                     csvfile.write(str(monthly_max) + ";")
                     csvfile.write(str(monthly_min) + ";")
+                    csvfile.write(disasters + ";")
                     csvfile.write("\n")
 
         except KeyError:
-            print("no data found for " + country)
+            #print("no data found for " + country)
             continue
 
 ts = time.time()
