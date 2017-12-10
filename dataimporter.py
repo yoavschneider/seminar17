@@ -145,7 +145,7 @@ def import_from_file(location, countries, station_countries):
                 year, month = convert_date(splitted[DATE])
                 temp = splitted[TEMPERATURE]
                 
-                if (year > start_year):
+                if (year >= start_year):
                     try:
                         monthly_values_all_stations[country].append((year, month, temp))
                     except KeyError:

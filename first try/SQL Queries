@@ -1,0 +1,38 @@
+Load from CSV:
+-------------
+
+load data local infile '/home/philllip/Dropbox/Uni/SEMINAR/seminarweathermigration/first try/refugeemonthly_7_countries.csv' into table refugees 
+fields terminated by ','
+  lines terminated by '\n'
+    (destination, origin, date_year, date_month, refugees);
+
+load data local infile '/home/philllip/Dropbox/Uni/SEMINAR/seminarweathermigration/first try/weather_data_7_countries.csv' into table weather 
+fields terminated by ','
+  lines terminated by '\n'
+    (country, date_year, date_month, deg_avg, deg_max, deg_min, disasters);
+    
+Aggregate Destination:
+---------------------
+
+SELECT origin, date_year, date_month, sum(refugees)
+FROM `seminar`.`refugees`
+GROUP BY origin, date_year, date_month;
+
+
+Into new Table:
+--------------
+INSERT INTO refugees_unified (origin, date_year, date_month, refugees)
+SELECT origin, date_year, date_month, sum(refugees) as refugees
+FROM `seminar`.`refugees`
+GROUP BY origin, date_year, date_month
+
+Join and replace null by 0:
+--------------------------
+UPDATE ALL_DATA JOIN REFUGEES_UNIFIED
+ON   ALL_DATA.country = REFUGEES_UNIFIED.origin
+AND     ALL_DATA.date_month = REFUGEES_UNIFIED.date_month
+AND     ALL_DATA.date_year = REFUGEES_UNIFIED.date_year
+SET     ALL_DATA.refugees = REFUGEES_UNIFIED.refugees;
+
+UPDATE ALL_DATA SET refugees = 0
+WHERE refugees is NULL
