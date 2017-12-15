@@ -252,7 +252,7 @@ with open('weather_data.csv', 'w', newline='') as csvfile:
                     csvfile.write("\n")
 
         except KeyError:
-            #print("no data found for " + country)
+            print("no data found for " + country)
             continue
 
 ts = time.time()

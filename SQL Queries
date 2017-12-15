@@ -1,0 +1,43 @@
+CREATE:
+------
+CREATE TABLE ALL_DATA (COUNTRY varchar(50), DATE_YEAR int, DATE_MONTH int, TEMP_AVG float, TEMP_MAX float, TEMP_MIN float, DISASTERS varchar(256), REFUGEES int)
+
+Load from CSV:
+-------------
+
+load data local infile '/home/philllip/Dropbox/Uni/SEMINAR/seminarweathermigration/refugeemonthly.csv' into table refugees 
+fields terminated by ','
+  lines terminated by '\n'
+    (destination, origin, date_year, date_month, refugees);
+
+load data local infile '/home/philllip/Dropbox/Uni/SEMINAR/seminarweathermigration/weather_data.csv' into table WEATHER_DATA 
+fields terminated by ';'
+  lines terminated by '\n'
+    (country, date_year, date_month, temp_avg, temp_max, temp_min, disasters);
+    
+Aggregate Destination:
+---------------------
+
+SELECT origin, date_year, date_month, sum(refugees)
+FROM `seminar`.`refugees`
+GROUP BY origin, date_year, date_month;
+
+
+Into new Table:
+--------------
+INSERT INTO refugees_unified (origin, date_year, date_month, refugees)
+SELECT origin, date_year, date_month, sum(refugees) as refugees
+FROM `seminar`.`refugees`
+GROUP BY origin, date_year, date_month
+
+Join and replace null by 0:
+--------------------------
+UPDATE ALL_DATA SET REFUGEES = 0
+WHERE REFUGEES is NULL
+
+UPDATE ALL_DATA JOIN REFUGEES_UNIFIED
+ON   ALL_DATA.COUNTRY = REFUGEES_UNIFIED.ORIGIN
+AND     ALL_DATA.DATE_MONTH = REFUGEES_UNIFIED.DATE_MONTH
+AND     ALL_DATA.DATE_YEAR = REFUGEES_UNIFIED.DATE_YEAR
+SET     ALL_DATA.REFUGEES = REFUGEES_UNIFIED.REFUGEES
+WHERE   REFUGEES_UNIFIED.REFUGEES > 0;
