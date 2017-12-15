@@ -4,6 +4,7 @@ import datetime
 import math
 import sys
 import csv
+import itertools
 
 # Stations File Column Indexes
 STATION_ID = 0
@@ -115,10 +116,10 @@ def import_natural_disaster_data(location):
 
             for month in months:
                 try:
-                    all_countries_natural_disasters[country][month].add((type,subtype))
+                    all_countries_natural_disasters[country][month].append(str(type) + " " + str(subtype))
                 except KeyError:
-                    all_countries_natural_disasters[country][month] = set()
-                    all_countries_natural_disasters[country][month].add((type,subtype))
+                    all_countries_natural_disasters[country][month] = []
+                    all_countries_natural_disasters[country][month].append(str(type) + " " + str(subtype))
 
             if (limit == 0):
                 break
@@ -236,9 +237,10 @@ with open('weather_data.csv', 'w', newline='') as csvfile:
                     except KeyError:
                         monthly_min = "*"
                     try:
-                        disasters = str(all_disasters[(year,month)])
+                        disasters = all_disasters[(year,month)]
+                        disasters = str(list(disasters)).replace('[','').replace(']','')
                     except KeyError:
-                        disasters = '*'
+                        disasters = "*"
 
                     csvfile.write(country + ";")
                     csvfile.write(str(year) + ";")
