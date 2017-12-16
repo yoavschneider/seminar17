@@ -48,10 +48,9 @@ for line in csv.reader(inputFile):
 			
 #here we create a dictionary which gives us the data, we have to type the r,o,y,m and get val
 dictionary = {}
-DictVal = zip(residence,origin,year,month)
+DictVal = list(zip(residence,origin,year,month))
 #print(len(DictVal))
 for i in range(0,len(DictVal)):
-	#value[i] = value[i][:-2]
 	if value[i] == "":
 		value[i]= "0"
 	dictionary[DictVal[i]]= value[i]
