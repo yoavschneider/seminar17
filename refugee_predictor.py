@@ -1,4 +1,5 @@
 # Based on https://machinelearningmastery.com/sequence-classification-lstm-recurrent-neural-networks-python-keras/
+# https://medium.com/@pushkarmandot/build-your-first-deep-learning-neural-network-model-using-keras-in-python-a90b5864116d
 
 # Expecting CSV data in format:
 # Country (string), avg, max, min, refugees, timestep (0 to 443)
@@ -9,7 +10,12 @@ import numpy
 from numpy import array
 from numpy import asarray
 from numpy import argmax
+from numpy import arange
 from numpy import unique
+from numpy import reshape
+
+import random
+import matplotlib.pyplot as plt
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -20,10 +26,9 @@ from keras.layers.embeddings import Embedding
 from keras.preprocessing import sequence
 from keras.utils import to_categorical
 
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-
-sc = StandardScaler()
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 number_of_values_per_country = 444
 
@@ -33,8 +38,8 @@ test_amount = 0
 train_range = range(0, train_amount)
 test_range = range(train_amount, train_amount + test_amount)
 
-# Using data from previous months (up to 24)
-lookback = 12
+# Using data from previous months
+lookback = 0
 
 def load_data(file):
     x_train = []
@@ -67,18 +72,19 @@ def load_data(file):
     x_train = zip (countries_encoded_train, x_train)
     y_train = zip (countries_encoded_train, y_train)
 
-    x_train_final = []
-    y_train_final = []
-
     # format now (country, time, avg, max, min, refugees)
     # convert to [country] + [avg,max,min] + lookback * [avg,max,min,refugees]
 
     last_values = []
+    x_train_final = []
+    y_train_final = []
 
     for (country, (time, avg, max, min, refugees)) in x_train:
         if (time == 0):
             del last_values[:]
-        if (time >= lookback):
+        if (lookback == 0):
+            x_train_final.append([country,avg,max,min])
+        elif (time >= lookback):
             x_train_final.append([country,avg,max,min] + last_values)
             last_values.pop(0)
             last_values.pop(0)
@@ -100,46 +106,74 @@ def load_data(file):
         if (time >= lookback):
             y_train_final.append(refugees)
 
-
     x_train = asarray(x_train_final)
     y_train = asarray(y_train_final)
 
-    x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size = 0.2)
-
-    return ((x_train, y_train), (x_test, y_test))
+    return (x_train, y_train)
 
 # fix random seed for reproducibility
-numpy.random.seed(7)
+#numpy.random.seed(7)
 
 # load the dataset
-(x_train, y_train), (x_test, y_test) = load_data("LESS_DATA_CORRECTED_17_12.csv")
 
-X_train = sc.fit_transform(x_train)
-X_test = sc.transform(x_test)
+lookback = 12
 
-print (x_train.shape)
-print (y_train.shape)
-print (x_test.shape)
-print (y_test.shape)
+(x_all, y_all) = load_data("LESS_DATA_CORRECTED_17_12.csv")
+x_train, x_test, y_train, y_test = train_test_split(x_all, y_all, test_size = 0.2)
+
+# scale values
+scX = StandardScaler()
+scY = StandardScaler()
+x_train_scaled = scX.fit_transform(x_train)
+x_test_scaled = scX.transform(x_test)
+
+y_train_scaled = scY.fit_transform(y_train.reshape(-1,1))
+y_test_scaled = scY.transform(y_test.reshape(-1,1))
 
 input_dimension = 4 + lookback * 4
 
-# create the model
+x_train = x_train_scaled
+x_test = x_test_scaled
+y_train = y_train_scaled
+y_test = y_test_scaled
+
+print(x_train)
+print(y_train)
+
+# create model 1
 model = Sequential()
-model = Sequential()
-model.add(Dense(output_dim = 10, init = 'uniform', activation = 'relu', input_dim = input_dimension))
-model.add(Dense(output_dim = input_dimension, init = 'uniform', activation = 'relu'))
-model.add(Dense(output_dim = input_dimension, init = 'uniform', activation = 'relu'))
-model.add(Dense(output_dim = 1, init = 'uniform', activation = 'sigmoid'))
-model.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
-print(model.summary())
+model.add(Dense(units = 4 + lookback * 2, kernel_initializer = 'uniform', activation = 'relu', input_dim = input_dimension))
+model.add(Dense(units = 4 + lookback, kernel_initializer = 'uniform', activation = 'relu'))
+model.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'sigmoid'))
+model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['mse'])
 
 # Each batch should be one country
-model.fit(x_train, y_train, epochs=100, batch_size=train_amount)
+history = model.fit(x_train, y_train, epochs=20000, batch_size=train_amount, verbose=2)
 
 # Final evaluation of the model
-scores = model.evaluate(x_train, y_train, verbose=0)
-print("Accuracy (training data): %.2f%%" % (scores[1]*100))
-scores = model.evaluate(x_test, y_test, verbose=0)
-print("Accuracy (test data): %.2f%%" % (scores[1]*100))
+print(model.summary())
 
+scores = model.evaluate(x_test, y_test, verbose=0)
+print("Model 1: Accuracy (test data): " + str(scores[1]))
+
+plt.plot(history.history['mean_squared_error'])
+plt.show()
+
+# Save model
+##path = "/models/" + str(int(scores[1]*100)) + "_" + str(random.randint(0,1000)) + ".h5"
+#model.save(path)
+##print("Saved to: " + path)
+
+# Plot results
+
+time = arange(300,500)
+
+plot_data1 = model.predict(x_test[300:500])
+plot_data2 = y_test[300:500]
+
+plot_data1 = scY.inverse_transform(plot_data1)
+plot_data2 = scY.inverse_transform(plot_data2)
+plt.plot(time, plot_data2, time, plot_data1)
+
+plt.ylabel('refugees')
+plt.show()
