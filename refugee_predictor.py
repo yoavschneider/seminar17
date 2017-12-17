@@ -18,6 +18,7 @@ import random
 import matplotlib.pyplot as plt
 
 from keras.models import Sequential
+from keras.models import load_model
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers.convolutional import Conv1D
@@ -106,10 +107,7 @@ def load_data(file):
         if (time >= lookback):
             y_train_final.append(refugees)
 
-    x_train = asarray(x_train_final)
-    y_train = asarray(y_train_final)
-
-    return (x_train, y_train)
+    return (x_train_final, y_train_final)
 
 # fix random seed for reproducibility
 #numpy.random.seed(7)
@@ -119,7 +117,25 @@ def load_data(file):
 lookback = 12
 
 (x_all, y_all) = load_data("LESS_DATA_CORRECTED_17_12.csv")
-x_train, x_test, y_train, y_test = train_test_split(x_all, y_all, test_size = 0.2)
+#x_train, x_test, y_train, y_test = train_test_split(x_all, y_all, test_size = 0.1)
+
+x_train = []
+y_train = []
+x_test = []
+y_test = []
+
+for i in range(0,len(list(x_all))):
+    if ((i % 444) < 420):
+        x_train.append(x_all[i])
+        y_train.append(y_all[i])
+    else:
+        x_test.append(x_all[i])
+        y_test.append(y_all[i])
+
+x_train = asarray(x_train)
+y_train = asarray(y_train).reshape(-1,1)
+x_test = asarray(x_test)
+y_test = asarray(y_test).reshape(-1,1)
 
 # scale values
 scX = StandardScaler()
@@ -137,18 +153,18 @@ x_test = x_test_scaled
 y_train = y_train_scaled
 y_test = y_test_scaled
 
-print(x_train)
-print(y_train)
-
 # create model 1
 model = Sequential()
-model.add(Dense(units = 4 + lookback * 2, kernel_initializer = 'uniform', activation = 'relu', input_dim = input_dimension))
-model.add(Dense(units = 4 + lookback, kernel_initializer = 'uniform', activation = 'relu'))
-model.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'sigmoid'))
+model.add(Dense(units =  4 + lookback * 4, kernel_initializer = 'uniform', activation = 'relu', input_dim = input_dimension))
+model.add(Dense(units = 4 + lookback * 2, kernel_initializer = 'uniform', activation = 'relu'))
+model.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'relu'))
 model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['mse'])
 
-# Each batch should be one country
-history = model.fit(x_train, y_train, epochs=20000, batch_size=train_amount, verbose=2)
+# Or load model
+model = load_model('./models/saved_model.h5')
+
+# TRAIN
+history = model.fit(x_train, y_train, epochs=1000, batch_size=train_amount, verbose=1)
 
 # Final evaluation of the model
 print(model.summary())
@@ -156,20 +172,21 @@ print(model.summary())
 scores = model.evaluate(x_test, y_test, verbose=0)
 print("Model 1: Accuracy (test data): " + str(scores[1]))
 
-plt.plot(history.history['mean_squared_error'])
-plt.show()
+#plt.plot(history.history['mean_squared_error'])
+#plt.show()
 
 # Save model
-##path = "/models/" + str(int(scores[1]*100)) + "_" + str(random.randint(0,1000)) + ".h5"
-#model.save(path)
-##print("Saved to: " + path)
+path = './models/saved_model.h5'
+
+model.save(path)
+print("Saved to: " + path)
 
 # Plot results
 
-time = arange(300,500)
+time = arange(0,len(x_test_scaled))
 
-plot_data1 = model.predict(x_test[300:500])
-plot_data2 = y_test[300:500]
+plot_data1 = model.predict(x_test_scaled)
+plot_data2 = y_test_scaled
 
 plot_data1 = scY.inverse_transform(plot_data1)
 plot_data2 = scY.inverse_transform(plot_data2)
