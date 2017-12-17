@@ -21,12 +21,14 @@ from keras.preprocessing import sequence
 from keras.utils import to_categorical
 
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
 sc = StandardScaler()
 
 number_of_values_per_country = 444
 
-train_amount = 420
-test_amount = 24
+train_amount = 424
+test_amount = 0
 
 train_range = range(0, train_amount)
 test_range = range(train_amount, train_amount + test_amount)
@@ -63,14 +65,10 @@ def load_data(file):
     b2 ,countries_encoded_test = unique(countries_test, return_inverse=True)
 
     x_train = zip (countries_encoded_train, x_train)
-    x_test = zip (countries_encoded_test, x_test)
     y_train = zip (countries_encoded_train, y_train)
-    y_test = zip (countries_encoded_test, y_test)
 
     x_train_final = []
-    x_test_final = []
     y_train_final = []
-    y_test_final = []
 
     # format now (country, time, avg, max, min, refugees)
     # convert to [country] + [avg,max,min] + lookback * [avg,max,min,refugees]
@@ -96,39 +94,17 @@ def load_data(file):
             last_values.append(min)
             last_values.append(refugees)    
 
-    for (country, (time, avg, max, min, refugees)) in x_test:
-        if (time - train_amount == 0):
-            del last_values[:]
-        if (time - train_amount >= lookback):
-            x_test_final.append([country,avg,max,min] + last_values)
-            last_values.pop(0)
-            last_values.pop(0)
-            last_values.pop(0)
-            last_values.pop(0)
-            last_values.append(avg)
-            last_values.append(max)
-            last_values.append(min)
-            last_values.append(refugees)
-        else:
-            last_values.append(avg)
-            last_values.append(max)
-            last_values.append(min)
-            last_values.append(refugees)
-
     # Update  y_test and y_train accordingly
 
     for (country, (time, refugees)) in y_train:
         if (time >= lookback):
             y_train_final.append(refugees)
 
-    for (country, (time, refugees)) in y_test:
-        if (time - train_amount >= lookback):
-            y_test_final.append(refugees)
 
     x_train = asarray(x_train_final)
     y_train = asarray(y_train_final)
-    x_test = asarray(x_test_final)
-    y_test = asarray(y_test_final)
+
+    x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size = 0.2)
 
     return ((x_train, y_train), (x_test, y_test))
 
@@ -150,14 +126,16 @@ input_dimension = 4 + lookback * 4
 
 # create the model
 model = Sequential()
+model = Sequential()
 model.add(Dense(output_dim = 10, init = 'uniform', activation = 'relu', input_dim = input_dimension))
-model.add(Dense(output_dim = 6, init = 'uniform', activation = 'relu'))
+model.add(Dense(output_dim = input_dimension, init = 'uniform', activation = 'relu'))
+model.add(Dense(output_dim = input_dimension, init = 'uniform', activation = 'relu'))
 model.add(Dense(output_dim = 1, init = 'uniform', activation = 'sigmoid'))
 model.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
 print(model.summary())
 
 # Each batch should be one country
-model.fit(x_train, y_train, epochs=200, batch_size=train_amount)
+model.fit(x_train, y_train, epochs=100, batch_size=train_amount)
 
 # Final evaluation of the model
 scores = model.evaluate(x_train, y_train, verbose=0)
