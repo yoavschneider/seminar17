@@ -29,64 +29,73 @@ from keras.utils import to_categorical
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
-number_of_values_per_country = 444
+train_amount = 420
+values_per_country = 444
 
-train_amount = 424
-test_amount = 0
+##train_range = range(0, train_amount)
+#test_range = range(train_amount, train_amount + test_amount)
 
-train_range = range(0, train_amount)
-test_range = range(train_amount, train_amount + test_amount)
+def save_plot(i, x, y, scaler_x, scaler_y, path):
+    time = arange(2850,3064)
 
-# Using data from previous months
-lookback = 0
+    x_scaled = scaler_x.transform(x)
 
-def load_data(file):
-    x_train = []
-    y_train = []
-    x_test = []
-    y_test = []
-    countries_train = []
-    countries_test = []
+    plot_data_predicted = model.predict(x_scaled[2850:3064])
+    plot_data_predicted = scaler_y.inverse_transform(plot_data_predicted)
+
+    plot_data_real = y[2850:3064]
+
+    plt.plot(time, plot_data_real)
+    plt.plot(time, plot_data_predicted)
+
+    plt.ylabel('refugees')
+    #plt.show()
+    plt.savefig(path + str(i) + '.jpg')
+    plt.clf()
+
+def load_data(file, lookback):
+    x = []
+    y = []
+    countries = []
+    disasters = []
 
     with open(file, newline='') as csvfile:
-        rows = csv.reader(csvfile, delimiter=',', quotechar='|')
+        rows = csv.reader(csvfile, delimiter=',', quotechar='"')
         for row in rows:
-            country, avg, max, min, refugees, time = row
-            if (int(time) in train_range):
-                x_train.append((int(time), float(avg), float(max), float(min), int(refugees)))
-                y_train.append((int(time), int(refugees)))
-                countries_train.append(country)
-            if (int(time) in test_range):
-                x_test.append((int(time), float(avg), float(max), float(min), int(refugees)))
-                y_test.append((int(time), int(refugees)))
-                countries_test.append(country)
+            country, avg, max, min, disaster, refugees, time = row
+            x.append((int(time), float(avg), float(max), float(min), int(refugees)))
+            y.append((int(time), int(refugees)))
+            countries.append(country)
+            disasters.append(disaster)
 
-    countries_train = array(countries_train)
-    countries_test = array(countries_test)
+    countries = array(countries)
+    disasters = array(disasters)
 
     # Hot one encoding of countries
-    b1 ,countries_encoded_train = unique(countries_train, return_inverse=True)
-    b2 ,countries_encoded_test = unique(countries_test, return_inverse=True)
+    country_encoder ,countries_encoded = unique(countries, return_inverse=True)
+    disaster_encoder, disasters_encoded = unique(disasters, return_inverse=True)
 
-    x_train = zip (countries_encoded_train, x_train)
-    y_train = zip (countries_encoded_train, y_train)
+    x = zip (countries_encoded, disasters_encoded, x)
+    y = zip (countries_encoded, y)
 
     # format now (country, time, avg, max, min, refugees)
     # convert to [country] + [avg,max,min] + lookback * [avg,max,min,refugees]
 
     last_values = []
-    x_train_final = []
-    y_train_final = []
+    x_final = []
+    y_final = []
 
-    for (country, (time, avg, max, min, refugees)) in x_train:
+    for (country, disaster, (time, avg, max, min, refugees)) in x:
         if (time == 0):
             del last_values[:]
         if (lookback == 0):
-            x_train_final.append([country,avg,max,min])
+            x_final.append([country,avg,max,min,disaster])
         elif (time >= lookback):
-            x_train_final.append([country,avg,max,min] + last_values)
+            x_final.append([country,avg,max,min,disaster] + last_values)
+            last_values.pop(0)
             last_values.pop(0)
             last_values.pop(0)
             last_values.pop(0)
@@ -94,103 +103,91 @@ def load_data(file):
             last_values.append(avg)
             last_values.append(max)
             last_values.append(min)
+            last_values.append(disaster)
             last_values.append(refugees)
         else:
             last_values.append(avg)
             last_values.append(max)
             last_values.append(min)
+            last_values.append(disaster)
             last_values.append(refugees)    
 
-    # Update  y_test and y_train accordingly
-
-    for (country, (time, refugees)) in y_train:
+    for (country, (time, refugees)) in y:
         if (time >= lookback):
-            y_train_final.append(refugees)
+            y_final.append(refugees)
 
-    return (x_train_final, y_train_final)
+    return (x_final, y_final)
+
+def split_data(x,y,lookback, train_amount):
+    x_train = []
+    y_train = []
+    x_test = []
+    y_test = []
+
+    # First train_amount values are for training (out of 444 months)
+    for i in range(0,len(list(x))):
+        if ((i % 444) < train_amount):
+            x_train.append(x[i])
+            y_train.append(y[i])
+        else:
+            x_test.append(x[i])
+            y_test.append(y[i])
+
+    x_train = asarray(x_train)
+    y_train = asarray(y_train).reshape(-1,1)
+    x_test = asarray(x_test)
+    y_test = asarray(y_test).reshape(-1,1)
+
+    return (x_train, y_train, x_test, y_test)
 
 # fix random seed for reproducibility
 #numpy.random.seed(7)
 
+lookback = 6
+
 # load the dataset
-
-lookback = 12
-
-(x_all, y_all) = load_data("LESS_DATA_CORRECTED_17_12.csv")
-#x_train, x_test, y_train, y_test = train_test_split(x_all, y_all, test_size = 0.1)
-
-x_train = []
-y_train = []
-x_test = []
-y_test = []
-
-for i in range(0,len(list(x_all))):
-    if ((i % 444) < 420):
-        x_train.append(x_all[i])
-        y_train.append(y_all[i])
-    else:
-        x_test.append(x_all[i])
-        y_test.append(y_all[i])
-
-x_train = asarray(x_train)
-y_train = asarray(y_train).reshape(-1,1)
-x_test = asarray(x_test)
-y_test = asarray(y_test).reshape(-1,1)
+(x, y) = load_data("ALL_DATA_2_1.csv", lookback)
+x_train, y_train, x_test, y_test = split_data(x, y, lookback, train_amount)
 
 # scale values
 scX = StandardScaler()
-scY = StandardScaler()
+scY = MinMaxScaler()
 x_train_scaled = scX.fit_transform(x_train)
 x_test_scaled = scX.transform(x_test)
 
 y_train_scaled = scY.fit_transform(y_train.reshape(-1,1))
 y_test_scaled = scY.transform(y_test.reshape(-1,1))
 
-input_dimension = 4 + lookback * 4
+input_dimension = 5 + lookback * 5
 
 x_train = x_train_scaled
 x_test = x_test_scaled
 y_train = y_train_scaled
 y_test = y_test_scaled
 
-# create model 1
+# create model
 model = Sequential()
-model.add(Dense(units =  4 + lookback * 4, kernel_initializer = 'uniform', activation = 'relu', input_dim = input_dimension))
-model.add(Dense(units = 4 + lookback * 2, kernel_initializer = 'uniform', activation = 'relu'))
-model.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'relu'))
+model.add(Dense(units =  4 + lookback * 4, kernel_initializer = 'random_uniform', activation = 'relu', input_dim = input_dimension))
+model.add(Dense(units = 4 + lookback * 3, kernel_initializer = 'random_uniform', activation = 'relu'))
+model.add(Dense(units = 4 + lookback * 2, kernel_initializer = 'random_uniform', activation = 'relu'))
+model.add(Dense(units = 4 + lookback, kernel_initializer = 'random_uniform', activation = 'relu'))
+model.add(Dense(units = 1, kernel_initializer = 'random_uniform', activation = 'relu'))
 model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['mse'])
 
+# PATH
+path = './models/new/model'
+
 # Or load model
-model = load_model('./models/saved_model.h5')
-
-# TRAIN
-history = model.fit(x_train, y_train, epochs=1000, batch_size=train_amount, verbose=1)
-
-# Final evaluation of the model
+model = load_model(path + '.h5')
 print(model.summary())
 
-scores = model.evaluate(x_test, y_test, verbose=0)
-print("Model 1: Accuracy (test data): " + str(scores[1]))
+# TRAIN
+for i in range(1,10):    
+    model.fit(x_train, y_train, epochs=100, batch_size=train_amount, verbose=2)
 
-#plt.plot(history.history['mean_squared_error'])
-#plt.show()
+    # Save model
+    model.save(path + '.h5')
+    print("Saved to: " + path + '.h5')
 
-# Save model
-path = './models/saved_model.h5'
-
-model.save(path)
-print("Saved to: " + path)
-
-# Plot results
-
-time = arange(0,len(x_test_scaled))
-
-plot_data1 = model.predict(x_test_scaled)
-plot_data2 = y_test_scaled
-
-plot_data1 = scY.inverse_transform(plot_data1)
-plot_data2 = scY.inverse_transform(plot_data2)
-plt.plot(time, plot_data2, time, plot_data1)
-
-plt.ylabel('refugees')
-plt.show()
+    # Plot results
+    save_plot(i, x, y, scX, scY, path)

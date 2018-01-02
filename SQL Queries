@@ -11,10 +11,12 @@ fields terminated by ','
     (destination, origin, date_year, date_month, refugees);
 
 load data local infile '/home/philllip/Dropbox/Uni/SEMINAR/seminarweathermigration/weather_data.csv' into table WEATHER_DATA 
-fields terminated by ';'
+fields terminated by ','
   lines terminated by '\n'
     (country, date_year, date_month, temp_avg, temp_max, temp_min, disasters);
-    
+
+INSERT ALL_DATA SELECT * FROM WEATHER_DATA;    
+
 Aggregate Destination:
 ---------------------
 
@@ -47,7 +49,7 @@ Write to CSV:
 
 SELECT *
 FROM ALL_DATA_CORRECTED
-INTO OUTFILE '/var/lib/mysql-files/ALL_DATA_CORRECTED_16_12.csv'
+INTO OUTFILE '/var/lib/mysql-files/ALL_DATA_2_1.csv'
 FIELDS TERMINATED BY ','
 ENCLOSED BY '"'
 LINES TERMINATED BY '\n';
