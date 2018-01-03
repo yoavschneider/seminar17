@@ -38,6 +38,7 @@ values_per_country = 444
 
 def save_plot(index, x, y, scaler_x, scaler_y, path, forecast, start, end):
     x_scaled = scaler_x.transform(x[start:end])
+    expected = y[start:end]
 
     predicted = model.predict(x_scaled)
     predicted = scaler_y.inverse_transform(predicted)
@@ -48,7 +49,7 @@ def save_plot(index, x, y, scaler_x, scaler_y, path, forecast, start, end):
     for i in arange(start, end):
         if ((i - start) % forecast == 0):
             predicted_partial.append(predicted[i - start])
-            expected_partial.append(y[i])
+            expected_partial.append(expected[i - start])
     
     plot_data_predicted = [num for elem in predicted_partial for num in elem]
     plot_data_expected = [num for elem in expected_partial for num in elem]
@@ -64,7 +65,7 @@ def save_plot(index, x, y, scaler_x, scaler_y, path, forecast, start, end):
 
     plt.ylabel('refugees')
     # plt.show()
-    plt.savefig(path + str(index) + '.jpg', dpi=1000)
+    plt.savefig(path + str(index) + '.jpg', dpi=500)
     print ("Graph saved to " + path + str(index) + '.jpg')
     plt.clf()
 
@@ -134,15 +135,12 @@ def load_data(file, lookback, forecast):
 
     for (country, (time, refugees)) in y:
         if (time == 0):
-            if (len(last_values) > 0):
+            if (last_values):
                 y_final.append(last_values.copy())
             del last_values[:]
 
         if (time < lookback):
             continue
-
-    # 0,1,2,3,4,5,6,7,8,9,10,11,12,13
-    #             0,1,2,3,4,5,6,7,8,9
 
         if (time - lookback > forecast - 1):
             y_final.append(last_values.copy())
@@ -185,8 +183,8 @@ lookback = 6
 forecast = 3
 plot_start = 2850
 plot_end = 2904
-number_of_epochs = 10
-steps = 10
+number_of_epochs = 500
+steps = 50
 
 # load the dataset
 (x, y) = load_data("ALL_DATA_2_1.csv", lookback, forecast)
