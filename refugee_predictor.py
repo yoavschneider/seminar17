@@ -223,11 +223,11 @@ model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mse'])
 path = './models/new/model'
 
 # Or load model
-# model = load_model(path + '.h5')
+model = load_model(path + '.h5')
 print(model.summary())
 
 # Train and plot results
-for i in range(0, steps):
+for i in range(50, steps + 50):
     model.fit(x_train, y_train, epochs=number_of_epochs, batch_size=train_amount, verbose=2)
 
     # Plot results
