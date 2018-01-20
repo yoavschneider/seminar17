@@ -32,11 +32,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
-train_amount = 300
-values_per_country = 444
 
+#train_amount = 300
+#values_per_country = 444
 
-def save_plot(index, x, y, scaler_x, scaler_y, path, forecast, start, end):
+def save_plot(model,index, x, y, scaler_x, scaler_y, path, forecast, start, end):
     x_scaled = scaler_x.transform(x[start:end])
     expected = y[start:end]
 
@@ -69,7 +69,7 @@ def save_plot(index, x, y, scaler_x, scaler_y, path, forecast, start, end):
     print ("Graph saved to " + path + str(index) + '.jpg')
     plt.clf()
 
-def load_data(file, lookback, forecast):
+def load_data(file, lookback, forecast,vpc):
     x = []
     y = []
     countries = []
@@ -107,7 +107,7 @@ def load_data(file, lookback, forecast):
         if (time == 0):
             del last_values[:]
 
-        if (time > values_per_country - forecast):
+        if (time > vpc - forecast):
             continue
 
         if (lookback == 0):
@@ -150,9 +150,9 @@ def load_data(file, lookback, forecast):
             last_values.append(refugees)
 
     y_final.append(last_values.copy())
-    return (x_final, y_final)
+    return (x_final, y_final, country_encoder, disaster_encoder)
 
-def split_data(x, y, lookback, forecast, train_amount):
+def split_data(x, y, lookback, forecast, train_amount,vpc):
     x_train = []
     y_train = []
     x_test = []
@@ -162,7 +162,7 @@ def split_data(x, y, lookback, forecast, train_amount):
 
     # First train_amount values are for training (out of 444 months)
     for i in range(0, len(list(x))):
-        if (i % (values_per_country - forecast + 1) < train_amount):
+        if (i % (vpc - forecast + 1) < train_amount):
             x_train.append(x[i])
             y_train.append(y[i])
         else:
@@ -179,60 +179,42 @@ def split_data(x, y, lookback, forecast, train_amount):
 # fix random seed for reproducibility
 # numpy.random.seed(7)
 
-lookback = 6
-forecast = 3
-plot_start = 2850
-plot_end = 2904
-number_of_epochs = 500
-steps = 50
+def create_model(input_dimension,lookback,forecast):
+    # create model
+    model = Sequential()
+    model.add(Dense(units=4 + lookback * 4, kernel_initializer='random_uniform',
+                activation='relu', input_dim=input_dimension))
+    model.add(Dense(units=4 + lookback * 3,
+                kernel_initializer='random_uniform', activation='relu'))
+    model.add(Dense(units=4 + lookback * 2,
+                kernel_initializer='random_uniform', activation='relu'))
+    model.add(Dense(units=4 + lookback,
+                kernel_initializer='random_uniform', activation='relu'))
+    model.add(Dense(units=forecast, kernel_initializer='random_uniform', activation='relu'))
+    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mse'])
+
+    return model
+
+def train_model(model,x,y,l,f,ps,pe,n,s,indi,trainAmount,vpc):
 
 # load the dataset
-(x, y) = load_data("ALL_DATA_2_1.csv", lookback, forecast)
-x_train, y_train, x_test, y_test = split_data(x, y, lookback, forecast, train_amount)
+    x_train, y_train, x_test, y_test = split_data(x, y, l, f, trainAmount,vpc)
 
 # scale values
-scX = StandardScaler()
-scY = MinMaxScaler()
-x_train_scaled = scX.fit_transform(x_train)
-x_test_scaled = scX.transform(x_test)
+    scX = StandardScaler()
+    scY = MinMaxScaler()
+    x_train_scaled = scX.fit_transform(x_train)
+    x_test_scaled = scX.transform(x_test)
 
-y_train_scaled = scY.fit_transform(y_train)
-y_test_scaled = scY.transform(y_test)
+    y_train_scaled = scY.fit_transform(y_train)
+    y_test_scaled = scY.transform(y_test)
 
-input_dimension = 5 + lookback * 5
+    x_train = x_train_scaled
+    x_test = x_test_scaled
+    y_train = y_train_scaled
+    y_test = y_test_scaled
 
-x_train = x_train_scaled
-x_test = x_test_scaled
-y_train = y_train_scaled
-y_test = y_test_scaled
+    for i in range(1, s + 1):
+        model.fit(x_train, y_train, epochs=n, batch_size=trainAmount, verbose=2)
 
-# create model
-model = Sequential()
-model.add(Dense(units=4 + lookback * 4, kernel_initializer='random_uniform',
-                activation='relu', input_dim=input_dimension))
-model.add(Dense(units=4 + lookback * 3,
-                kernel_initializer='random_uniform', activation='relu'))
-model.add(Dense(units=4 + lookback * 2,
-                kernel_initializer='random_uniform', activation='relu'))
-model.add(Dense(units=4 + lookback,
-                kernel_initializer='random_uniform', activation='relu'))
-model.add(Dense(units=forecast, kernel_initializer='random_uniform', activation='relu'))
-model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mse'])
-
-# PATH
-path = './models/new/model'
-
-# Or load model
-model = load_model(path + '.h5')
-print(model.summary())
-
-# Train and plot results
-for i in range(50, steps + 50):
-    model.fit(x_train, y_train, epochs=number_of_epochs, batch_size=train_amount, verbose=2)
-
-    # Plot results
-    save_plot(i, x, y, scX, scY, path, forecast, plot_start, plot_end)
-
-# Save model
-model.save(path + '.h5')
-print("Saved model to: " + path + '.h5')
+    return model
