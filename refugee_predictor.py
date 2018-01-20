@@ -16,6 +16,7 @@ from numpy import reshape
 
 import random
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 from keras.models import Sequential
 from keras.models import load_model
@@ -36,38 +37,85 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 #train_amount = 300
 #values_per_country = 444
 
-def save_plot(model,index, x, y, scaler_x, scaler_y, path, forecast, start, end):
-    x_scaled = scaler_x.transform(x[start:end])
-    expected = y[start:end]
+def get_country_data(x,y,country_encoder,country_name):
+    filtered_x = []
+    filtered_y = []
 
-    predicted = model.predict(x_scaled)
+    for i in range(len(x)):
+        if (country_encoder[x[i][0]] == country_name):
+            filtered_x.append(x[i])
+            filtered_y.append(y[i])
+
+    return asarray(filtered_x), asarray(filtered_y)
+
+def save_plot(model, x, y, scaler_x, scaler_y, path, forecast):
+    x_scaled = scaler_x.transform(x)
+    expected = y
+
+    predicted = model.predict(x_scaled)   
     predicted = scaler_y.inverse_transform(predicted)
 
     predicted_partial = []
     expected_partial = []
 
+    start = 0
+    end = len(x)
+
     for i in arange(start, end):
         if ((i - start) % forecast == 0):
             predicted_partial.append(predicted[i - start])
-            expected_partial.append(expected[i - start])
-    
+            expected_partial.append(expected[i - start])    
+
     plot_data_predicted = [num for elem in predicted_partial for num in elem]
     plot_data_expected = [num for elem in expected_partial for num in elem]
 
-    time = arange(start, end)
-    plt.plot(time, plot_data_predicted)
+    end = len(plot_data_expected)
+
+    # Set figure size
+    fig_size = plt.rcParams["figure.figsize"]    
+    fig_size[0] = 20
+    fig_size[1] = 9
+    plt.rcParams["figure.figsize"] = fig_size
+
+    # Plot
+    fig, ax1 = plt.subplots()
+
+    left, bottom, width, height = [0.125, -0.1, 0.776, 0.2]
+    ax2 = fig.add_axes([left, bottom, width, height])
 
     time = arange(start, end)
-    plt.plot(time, plot_data_expected)
+    ax1.plot(time, plot_data_predicted, label='Predicated')
+
+    time = arange(start, end)
+    ax1.plot(time, plot_data_expected, label='Real Data')
 
     time = arange(start,end,forecast)
-    plt.plot(time,[plot_data_predicted[i - start] for i in arange(start,end,forecast)], 'ro')
+    ax1.plot(time,[plot_data_predicted[i - start] for i in arange(start,end,forecast)], 'ro', label='Start Point for Forecast')
+    
+    ax1.set_xlabel('Time')
+    ax1.legend(loc='upper left')
 
-    plt.ylabel('refugees')
+    end = len(predicted)
+    time = arange(start,end)
+    avg_temps = [elem[1] for elem in x]
+    max_temps = [elem[2] for elem in x]
+    min_temps = [elem[3] for elem in x]
+    ax2.plot(time, max_temps, 'r-', label='Maxmimum')
+    ax2.plot(time, avg_temps, 'g-', label='Average')
+    ax2.plot(time, min_temps, 'b-', label='Minimum')
+
+    ax2.legend(loc='upper left')
+
+    ax1.set_ylabel('Refugees', color='C1')
+    ax2.set_ylabel('Temperature', color='b')
+
+    left, bottom, width, height = [0.25, 0.6, 0.2, 0.2]
+
+    # Save figure
     # plt.show()
-    plt.savefig(path + str(index) + '.jpg', dpi=500)
-    print ("Graph saved to " + path + str(index) + '.jpg')
-    plt.clf()
+    plt.savefig(path + '.jpg', dpi=500, additional_artists=ax2, bbox_inches="tight")
+    print ("Graph saved to " + path +  '.jpg')
+    plt.close()
 
 def load_data(file, lookback, forecast,vpc):
     x = []
@@ -158,8 +206,6 @@ def split_data(x, y, lookback, forecast, train_amount,vpc):
     x_test = []
     y_test = []
 
-    print(str(len(x)) + "," + str(len(y)))
-
     # First train_amount values are for training (out of 444 months)
     for i in range(0, len(list(x))):
         if (i % (vpc - forecast + 1) < train_amount):
@@ -175,9 +221,6 @@ def split_data(x, y, lookback, forecast, train_amount,vpc):
     y_test = asarray(y_test)
 
     return (x_train, y_train, x_test, y_test)
-
-# fix random seed for reproducibility
-# numpy.random.seed(7)
 
 def create_model(input_dimension,lookback,forecast):
     # create model
@@ -195,18 +238,25 @@ def create_model(input_dimension,lookback,forecast):
 
     return model
 
-def train_model(model,x,y,l,f,ps,pe,n,s,indi,trainAmount,vpc):
-
-# load the dataset
-    x_train, y_train, x_test, y_test = split_data(x, y, l, f, trainAmount,vpc)
-
-# scale values
+def get_scalers(x_train, y_train):
     scX = StandardScaler()
     scY = MinMaxScaler()
-    x_train_scaled = scX.fit_transform(x_train)
-    x_test_scaled = scX.transform(x_test)
 
-    y_train_scaled = scY.fit_transform(y_train)
+    scX.fit(x_train)
+    scY.fit(y_train)
+
+    return (scX, scY)
+
+def train_model(model,x,y,l,f,ps,pe,n,s,indi,trainAmount,vpc):
+    # split dataset
+    x_train, y_train, x_test, y_test = split_data(x, y, l, f, trainAmount,vpc)
+
+    scX, scY = get_scalers(x_train, y_train)
+
+    # scale values
+    x_train_scaled = scX.transform(x_train)
+    x_test_scaled = scX.transform(x_test)
+    y_train_scaled = scY.transform(y_train)
     y_test_scaled = scY.transform(y_test)
 
     x_train = x_train_scaled
