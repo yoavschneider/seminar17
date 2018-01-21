@@ -7,10 +7,10 @@ data_path = 'ALL_DATA_2_1.csv'
 plot_path = './models/new/plots/'
 plot_start = 2850
 plot_end = 2904
-number_of_epochs = 100
-steps = 10
+number_of_epochs = 3
+steps = 1
 input_dimension = 5 + lookback * 5
-train_amount = 300
+train_amount = 360
 values_per_country = 444
 
 
@@ -44,13 +44,19 @@ def predict_and_plot(country):
 
     x, y = get_country_data(x,y,country_encoder,country)
 
-    save_plot(model, x, y, scaler_x, scaler_y, plot_path + country, forecast)
+    save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, plot_path + country, forecast)
+
+def predict_and_plot_all_countries():
+    model = load_predicator()
+    x, y, country_encoder, disaster_encoder = load_data(data_path,lookback,forecast,values_per_country)
+    x_train, y_train, _, _ = split_data(x, y, lookback, forecast, train_amount,values_per_country)
+    scaler_x, scaler_y = get_scalers(x_train, y_train)
+
+    for country in country_encoder:
+        x_country, y_country = get_country_data(x,y,country_encoder,country)
+        save_plot(model, x_country, y_country, scaler_x, scaler_y, disaster_encoder, plot_path + country, forecast)
 
 
-#create_predicator()
-#train_predicator()
-predict_and_plot("Afghanistan")
-predict_and_plot("Namibia")
-predict_and_plot("Nepal")
-predict_and_plot("Swaziland")
-predict_and_plot("Thailand")
+create_predicator()
+train_predicator()
+predict_and_plot_all_countries()

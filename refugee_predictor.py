@@ -33,22 +33,19 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
-
-#train_amount = 300
-#values_per_country = 444
-
 def get_country_data(x,y,country_encoder,country_name):
     filtered_x = []
     filtered_y = []
 
     for i in range(len(x)):
-        if (country_encoder[x[i][0]] == country_name):
+        index = int(x[i][0])
+        if (country_encoder[index] == country_name):
             filtered_x.append(x[i])
             filtered_y.append(y[i])
 
     return asarray(filtered_x), asarray(filtered_y)
 
-def save_plot(model, x, y, scaler_x, scaler_y, path, forecast):
+def save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, path, forecast):
     x_scaled = scaler_x.transform(x)
     expected = y
 
@@ -84,13 +81,13 @@ def save_plot(model, x, y, scaler_x, scaler_y, path, forecast):
     ax2 = fig.add_axes([left, bottom, width, height])
 
     time = arange(start, end)
-    ax1.plot(time, plot_data_predicted, label='Predicated')
+    ax1.plot(time, plot_data_predicted, 'g--', label='Predicated')
 
     time = arange(start, end)
-    ax1.plot(time, plot_data_expected, label='Real Data')
+    ax1.plot(time, plot_data_expected, 'tab:orange', label='Real Data')
 
     time = arange(start,end,forecast)
-    ax1.plot(time,[plot_data_predicted[i - start] for i in arange(start,end,forecast)], 'ro', label='Start Point for Forecast')
+    ax1.plot(time,[plot_data_predicted[i - start] for i in arange(start,end,forecast)], 'go', label='Start Point for Forecast')
     
     ax1.set_xlabel('Time')
     ax1.legend(loc='upper left')
@@ -103,6 +100,19 @@ def save_plot(model, x, y, scaler_x, scaler_y, path, forecast):
     ax2.plot(time, max_temps, 'r-', label='Maxmimum')
     ax2.plot(time, avg_temps, 'g-', label='Average')
     ax2.plot(time, min_temps, 'b-', label='Minimum')
+
+    disasters_x = []
+    disasters_y = []
+
+    for i in range(0, len(x)):
+        dis_index = int (x[i][4])
+
+        if (disaster_encoder[dis_index] != '*'):
+            disasters_x.append(i)
+            disasters_y.append(-10)
+    ax2.plot(disasters_x, disasters_y, 'ro', label='Disasters')
+
+
 
     ax2.legend(loc='upper left')
 
@@ -132,6 +142,8 @@ def load_data(file, lookback, forecast,vpc):
             y.append((int(time), int(refugees)))
             countries.append(country)
             disasters.append(disaster)
+
+    csvfile.close()
 
     countries = array(countries)
     disasters = array(disasters)
