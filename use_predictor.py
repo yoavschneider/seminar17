@@ -3,16 +3,13 @@ from refugee_predictor import train_model,save_plot, load_data, load_model, crea
 lookback = 6
 forecast = 6
 model_path = './models/new/model'
-data_path = 'ALL_DATA_2_1.csv'
+data_path = 'CLEAN_DATA_2_1.csv'
 plot_path = './models/new/plots/'
-plot_start = 2850
-plot_end = 2904
-number_of_epochs = 3
-steps = 1
+number_of_epochs = 100
+steps = 50
 input_dimension = 5 + lookback * 5
-train_amount = 360
-values_per_country = 444
-
+train_amount = 180
+values_per_country = 216
 
 def create_predicator():
     model = create_model(input_dimension,lookback,forecast);
@@ -26,7 +23,7 @@ def train_predicator():
     x, y, _, _ = load_data(data_path,lookback,forecast,values_per_country)
 
     # Train the model
-    model = train_model(model,x,y,lookback,forecast,plot_start,plot_end,number_of_epochs,steps,input_dimension,train_amount,values_per_country)
+    model = train_model(model,x,y,lookback,forecast,number_of_epochs,steps,input_dimension,train_amount,values_per_country)
 
     # Save model
     model.save(model_path + '.h5')

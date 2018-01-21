@@ -2,7 +2,7 @@
 # https://medium.com/@pushkarmandot/build-your-first-deep-learning-neural-network-model-using-keras-in-python-a90b5864116d
 
 # Expecting CSV data in format:
-# Country (string), avg, max, min, refugees, timestep (0 to 443)
+# Country (string), avg, max, min, refugees, timestep (0 to train amount)
 
 import csv
 
@@ -218,7 +218,6 @@ def split_data(x, y, lookback, forecast, train_amount,vpc):
     x_test = []
     y_test = []
 
-    # First train_amount values are for training (out of 444 months)
     for i in range(0, len(list(x))):
         if (i % (vpc - forecast + 1) < train_amount):
             x_train.append(x[i])
@@ -259,7 +258,7 @@ def get_scalers(x_train, y_train):
 
     return (scX, scY)
 
-def train_model(model,x,y,l,f,ps,pe,n,s,indi,trainAmount,vpc):
+def train_model(model,x,y,l,f,n,s,indi,trainAmount,vpc):
     # split dataset
     x_train, y_train, x_test, y_test = split_data(x, y, l, f, trainAmount,vpc)
 
