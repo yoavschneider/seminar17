@@ -33,6 +33,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
+from datetime import datetime
+
 def get_country_data(x,y,country_encoder,country_name):
     filtered_x = []
     filtered_y = []
@@ -45,7 +47,7 @@ def get_country_data(x,y,country_encoder,country_name):
 
     return asarray(filtered_x), asarray(filtered_y)
 
-def save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, path, forecast):
+def save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, path, forecast, values_per_country):
     x_scaled = scaler_x.transform(x)
     expected = y
 
@@ -92,8 +94,9 @@ def save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, path, forecast)
     ax1.set_xlabel('Time')
     ax1.legend(loc='upper left')
 
-    end = len(predicted)
-    time = arange(start,end)
+    end = len(x)
+    time = arange(start, end)
+
     avg_temps = [elem[1] for elem in x]
     max_temps = [elem[2] for elem in x]
     min_temps = [elem[3] for elem in x]
@@ -110,9 +113,8 @@ def save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, path, forecast)
         if (disaster_encoder[dis_index] != '*'):
             disasters_x.append(i)
             disasters_y.append(-10)
+
     ax2.plot(disasters_x, disasters_y, 'ro', label='Disasters')
-
-
 
     ax2.legend(loc='upper left')
 
