@@ -107,12 +107,14 @@ def save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, path, forecast,
     disasters_x = []
     disasters_y = []
 
+    disaster_y_pos = min(min_temps) - 5
+
     for i in range(0, len(x)):
         dis_index = int (x[i][4])
 
         if (disaster_encoder[dis_index] != '*'):
             disasters_x.append(i)
-            disasters_y.append(-10)
+            disasters_y.append(disaster_y_pos)
 
     ax2.plot(disasters_x, disasters_y, 'ro', label='Disasters')
 
@@ -125,8 +127,8 @@ def save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, path, forecast,
 
     # Save figure
     # plt.show()
-    plt.savefig(path + '.jpg', dpi=500, additional_artists=ax2, bbox_inches="tight")
-    print ("Graph saved to " + path +  '.jpg')
+    plt.savefig(path + '.svg', dpi=500, additional_artists=ax2, bbox_inches="tight", format="svg", transparent=True)
+    print ("Graph saved to " + path +  '.svg')
     plt.close()
 
 def load_data(file, lookback, forecast,vpc):
