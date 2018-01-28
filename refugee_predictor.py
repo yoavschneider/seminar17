@@ -83,7 +83,7 @@ def save_plot(model, x, y, scaler_x, scaler_y, disaster_encoder, path, forecast,
     ax2 = fig.add_axes([left, bottom, width, height])
 
     time = arange(start, end)
-    ax1.plot(time, plot_data_predicted, 'g--', label='Predicated')
+    ax1.plot(time, plot_data_predicted, 'g--', label='Predicted')
 
     time = arange(start, end)
     ax1.plot(time, plot_data_expected, 'tab:orange', label='Real Data')

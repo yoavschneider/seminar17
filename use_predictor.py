@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 lookback = 6
 forecast = 6
 
-model_path = './models/with_weather/model'
-data_path = './models/with_weather/CLEAN_DATA_2_1.csv'
-plot_path = './models/with_weather/'
+model_path = './models/no_weather/model'
+data_path = './models/no_weather/CLEAN_DATA_2_1_NO_WEATHER.csv'
+plot_path = './models/no_weather/SVG/'
 
 number_of_epochs = 100
 steps = 1
